@@ -75,7 +75,7 @@ select{background:var(--bg2);border:1px solid var(--border2);color:var(--text);f
 <div style="margin-left:auto">Last scan: <strong id="s-time">—</strong></div>
 </div>
 <script>
-const PAIRS=['EUR/USD','GBP/USD','USD/JPY','USD/CHF','AUD/USD','USD/CAD','NZD/USD','EUR/GBP','EUR/JPY','GBP/JPY','AUD/JPY','CAD/JPY','CHF/JPY','NZD/JPY','EUR/CHF','EUR/AUD','EUR/CAD','EUR/NZD','GBP/CHF','GBP/AUD','GBP/CAD','GBP/NZD','AUD/CAD','AUD/CHF','AUD/NZD','CAD/CHF','NZD/CAD','NZD/CHF'];
+const PAIRS=['EUR/USD','GBP/USD','GBP/JPY','EUR/JPY'];
 let scanData=[],currentFilter='all';
 async function runScan(){
 const btn=document.getElementById('scan-btn');
