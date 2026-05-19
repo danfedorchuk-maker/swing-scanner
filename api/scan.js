@@ -39,16 +39,14 @@ const pm=(ph+pl)/2;
 const up=pc>po;
 if(up&&mid>pm)return'long';
 if(!up&&mid<pm)return'short';
-if(up&&mid<=pm)return'long';
-if(!up&&mid>=pm)return'short';
-return'coil';
+if(up)return'long';
+return'short';
 }
 function nearSR(candles,cons){
 if(!cons.consolidating)return false;
-const atr=cons.atr;
 const mid=(cons.range_high+cons.range_low)/2;
 const prior=candles.slice(cons.candle_count+2);
-return prior.some(c=>Math.abs(parseFloat(c.high)-mid)<atr*0.5||Math.abs(parseFloat(c.low)-mid)<atr*0.5);
+return prior.some(c=>Math.abs(parseFloat(c.high)-mid)<cons.atr*0.5||Math.abs(parseFloat(c.low)-mid)<cons.atr*0.5);
 }
 function pips(range,pair){return Math.round(range/(pair.includes('JPY')?0.01:0.0001));}
 function trend(candles){
@@ -65,20 +63,12 @@ const pd=h4c.consolidating?h4:h1;
 const bias=determineBias(pd,pc);
 const sr=nearSR(h4,h4c);
 const strength=pc.consolidating?Math.min(Math.round(pc.tightness*60+(sr?25:0)+(bias!=='coil'?15:0)),99):0;
-return{pair,h4_candles:h4c.candle_count,h1_candles:h1c.candle_count,consolidating:pc.consolidating,bias:pc.consolidating?bias:'none',strength,near_sr:sr,range_pips:pips(pc.range||0,pair),avg_volume:h4[0]?.volume?Math.round(parseFloat(h4[0].volume)):0,h4_trend:trend(h4)};
+return{pair,h4_candles:h4c.candle_count,h1_candles:h1c.candle_count,consolidating:pc.consolidating,bias:pc.consolidating?bias:'none',strength,near_sr:sr,range_pips:pips(pc.range||0,pair),avg_volume:0,h4_trend:trend(h4)};
 }
-export default async function handler(req,res){
+module.exports=async function handler(req,res){
 if(!API_KEY)return res.status(500).json({error:'TWELVE_DATA_API_KEY not set'});
 try{
 const results=[];
 for(let i=0;i<PAIRS.length;i+=8){
 const batch=PAIRS.slice(i,i+8);
-const br=await Promise.allSettled(batch.map(p=>analyzePair(p)));
-br.forEach((r,j)=>results.push(r.status==='fulfilled'?r.value:{pair:batch[j],h4_candles:0,h1_candles:0,consolidating:false,bias:'error',strength:0,near_sr:false,range_pips:0,avg_volume:0,h4_trend:'unknown'}));
-if(i+8<PAIRS.length)await new Promise(r=>setTimeout(r,500));
-}
-const cons=results.filter(r=>r.consolidating);
-const non=results.filter(r=>!r.consolidating&&r.bias!=='error');
-return res.status(200).json({pairs:[...cons,...non],scanned_at:new Date().toISOString(),total:PAIRS.length});
-}catch(e){return res.status(500).json({error:e.message});}
-}
+const br=await Promise.allSettled(batch.map
