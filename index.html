@@ -1,19 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Swing Scanner</title>
 <style>
-:root{--bg:#0a0a0a;--bg2:#111111;--bg3:#161616;--border:#1e1e1e;--border2:#252525;--text:#e0e0e0;--text2:#888;--text3:#555;--green:#2ecc71;--green-bg:#0a2e18;--red:#e74c3c;--red-bg:#2e0a0a;--amber:#f39c12;--amber-bg:#2e200a;--mono:'Courier New',Courier,monospace;}
+:root{--bg:#0a0a0a;--bg2:#111;--bg3:#161616;--border:#1e1e1e;--border2:#252525;--text:#e0e0e0;--text2:#888;--text3:#555;--green:#2ecc71;--green-bg:#0a2e18;--red:#e74c3c;--red-bg:#2e0a0a;--amber:#f39c12;--amber-bg:#2e200a;--mono:'Courier New',Courier,monospace;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12px;min-height:100vh;padding:20px;}
 .top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border);}
-.logo{font-size:13px;font-weight:bold;letter-spacing:0.2em;color:var(--text);text-transform:uppercase;}
+.logo{font-size:13px;font-weight:bold;letter-spacing:0.2em;text-transform:uppercase;}
 .live-dot{width:6px;height:6px;background:var(--green);border-radius:50%;display:inline-block;margin-right:6px;animation:blink 2s infinite;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
 .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
-.ctrl-label{font-size:10px;color:var(--text3);letter-spacing:0.1em;}
+.ctrl-label{font-size:10px;color:var(--text3);}
 select{background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:4px 8px;border-radius:3px;cursor:pointer;}
 .btn{background:transparent;border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:3px;cursor:pointer;transition:all 0.15s;}
 .btn.active{border-color:var(--text2);color:var(--text);background:var(--bg3);}
@@ -24,7 +23,7 @@ select{background:var(--bg2);border:1px solid var(--border2);color:var(--text);f
 .th{font-size:10px;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;}
 .pair-row{display:grid;grid-template-columns:90px 55px 1fr 65px 70px 75px 80px;padding:7px 12px;border-bottom:1px solid var(--border);align-items:center;cursor:pointer;transition:background 0.1s;}
 .pair-row:hover{background:var(--bg3);}
-.pair-name{font-size:12px;font-weight:bold;color:var(--text);letter-spacing:0.05em;}
+.pair-name{font-size:12px;font-weight:bold;color:var(--text);}
 .tf-tag{font-size:10px;color:var(--text3);}
 .bar-track{height:3px;background:var(--border2);border-radius:2px;margin:0 8px;}
 .bar-fill{height:100%;border-radius:2px;}
@@ -40,7 +39,7 @@ select{background:var(--bg2);border:1px solid var(--border2);color:var(--text);f
 .detail-row.open{display:flex;}
 .status-bar{display:flex;gap:20px;padding:8px 0;font-size:10px;color:var(--text3);border-top:1px solid var(--border);}
 .loading{padding:24px;text-align:center;color:var(--text3);}
-.error-msg{padding:12px;background:var(--red-bg);color:var(--red);border-radius:3px;margin-bottom:12px;font-size:11px;}
+.progress{font-size:10px;color:var(--text3);margin-bottom:8px;}
 .section-divider{padding:5px 12px;background:var(--bg2);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);text-transform:uppercase;}
 </style>
 </head>
@@ -49,7 +48,7 @@ select{background:var(--bg2);border:1px solid var(--border2);color:var(--text);f
 <div class="logo"><span class="live-dot"></span>Swing Scanner</div>
 <span style="font-size:11px;color:var(--text3)" id="scan-time">—</span>
 </div>
-<div id="error-area"></div>
+<div id="progress-bar" class="progress"></div>
 <div class="controls">
 <span class="ctrl-label">TF</span>
 <select id="tf-sel" onchange="renderTable()"><option value="4h">H4</option><option value="1h">H1</option><option value="both" selected>H4+H1</option></select>
@@ -81,22 +80,21 @@ let scanData=[],currentFilter='all';
 async function runScan(){
 const btn=document.getElementById('scan-btn');
 btn.disabled=true;btn.textContent='↻ Scanning…';
-document.getElementById('error-area').innerHTML='';
-document.getElementById('table-body').innerHTML='<div class="loading">Fetching 28 pairs…</div>';
+scanData=[];
+document.getElementById('table-body').innerHTML='<div class="loading">Scanning pairs…</div>';
+for(let i=0;i<PAIRS.length;i++){
+document.getElementById('progress-bar').textContent=`Scanning ${i+1}/28: ${PAIRS[i]}`;
 try{
-const res=await fetch('/api/scan');
-if(!res.ok)throw new Error('API error '+res.status);
+const res=await fetch('/api/scan?pair='+encodeURIComponent(PAIRS[i]));
 const data=await res.json();
-if(data.error)throw new Error(data.error);
-scanData=data.pairs;
+if(!data.error)scanData.push(data);
+}catch(e){}
+renderTable();
+}
+document.getElementById('progress-bar').textContent='';
 const now=new Date();
 document.getElementById('scan-time').textContent=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 document.getElementById('s-time').textContent=now.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-renderTable();
-}catch(e){
-document.getElementById('error-area').innerHTML='<div class="error-msg">'+e.message+'</div>';
-document.getElementById('table-body').innerHTML='<div class="loading">Scan failed</div>';
-}
 btn.disabled=false;btn.textContent='↻ Scan';
 }
 function setFilter(el,dir){document.querySelectorAll('.btn:not(.scan-btn)').forEach(b=>b.classList.remove('active'));el.classList.add('active');currentFilter=dir;renderTable();}
