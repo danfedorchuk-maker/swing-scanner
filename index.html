@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<title>Swing Scanner v2</title>
+<title>Swing Scanner v3</title>
 <style>
-body{background:#0a0a0a;color:#e0e0e0;font-family:'Courier New',monospace;font-size:12px;padding:20px;}
+body{background:#0a0a0a;color:#e0e0e0;font-family:'Courier New',monospace;font-size:12px;padding:20px;margin:0;}
 .top{display:flex;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #1e1e1e;}
 .logo{font-size:13px;font-weight:bold;letter-spacing:0.2em;}
 .dot{width:6px;height:6px;background:#2ecc71;border-radius:50%;display:inline-block;margin-right:6px;animation:blink 2s infinite;}
@@ -15,7 +15,7 @@ select{background:#111;border:1px solid #252525;color:#e0e0e0;font-family:monosp
 .btn{background:transparent;border:1px solid #252525;color:#888;font-family:monospace;font-size:11px;padding:4px 10px;border-radius:3px;cursor:pointer;}
 .btn.active{border-color:#888;color:#e0e0e0;background:#161616;}
 .sbtn{margin-left:auto;border-color:#2ecc71;color:#2ecc71;background:transparent;font-family:monospace;font-size:11px;padding:4px 14px;border-radius:3px;cursor:pointer;}
-.sbtn:disabled{opacity:0.4;}
+.sbtn:disabled{opacity:0.4;cursor:not-allowed;}
 .wrap{border:1px solid #1e1e1e;border-radius:4px;overflow:hidden;margin-bottom:12px;}
 .hdr{display:grid;grid-template-columns:100px 60px 1fr 70px 60px 70px 75px;padding:6px 12px;background:#111;border-bottom:1px solid #1e1e1e;}
 .th{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.1em;}
@@ -30,15 +30,16 @@ select{background:#111;border:1px solid #252525;color:#e0e0e0;font-family:monosp
 .long{background:#0a2e18;color:#2ecc71;}
 .short{background:#2e0a0a;color:#e74c3c;}
 .coil{background:#161616;color:#555;}
+.none{background:#161616;color:#333;}
 .sr{font-size:10px;padding:2px 6px;border-radius:2px;}
 .srY{background:#2e200a;color:#f39c12;}
 .srN{background:#161616;color:#555;}
 .det{display:none;padding:8px 12px 8px 110px;background:#111;border-bottom:1px solid #1e1e1e;gap:16px;flex-wrap:wrap;font-size:10px;color:#555;}
 .det.open{display:flex;}
 .sbar{display:flex;gap:20px;padding:8px 0;font-size:10px;color:#555;border-top:1px solid #1e1e1e;}
-.prog{font-size:10px;color:#555;margin-bottom:8px;min-height:14px;}
+.prog{font-size:10px;color:#2ecc71;margin-bottom:8px;min-height:14px;}
 .sdiv{padding:4px 12px;background:#111;border-bottom:1px solid #1e1e1e;font-size:10px;color:#555;text-transform:uppercase;}
-.msg{padding:24px;text-align:center;color:#555;}
+.msg{padding:24px;text-align:center;color:#555;font-size:11px;}
 </style>
 </head>
 <body>
@@ -50,7 +51,7 @@ select{background:#111;border:1px solid #252525;color:#e0e0e0;font-family:monosp
 <div class="controls">
 <span class="cl">TF</span>
 <select id="tf" onchange="render()"><option value="4h">H4</option><option value="1h">H1</option><option value="both" selected>H4+H1</option></select>
-<span class="cl" style="margin-left:8px">Min</span>
+<span class="cl" style="margin-left:8px">Min candles</span>
 <select id="mc" onchange="render()"><option value="2">2+</option><option value="3" selected>3+</option><option value="4">4+</option><option value="6">6+</option></select>
 <span class="cl" style="margin-left:8px">Bias</span>
 <button class="btn active" onclick="filt(this,'all')">All</button>
@@ -61,7 +62,7 @@ select{background:#111;border:1px solid #252525;color:#e0e0e0;font-family:monosp
 </div>
 <div class="wrap">
 <div class="hdr">
-<span class="th">Pair</span><span class="th">TF</span><span class="th">Strength</span><span class="th" style="text-align:right">Candles</span><span class="th" style="text-align:right">S&amp;R</span><span class="th" style="text-align:right">Bias</span><span class="th" style="text-align:right">Str%</span>
+<span class="th">Pair</span><span class="th">TF</span><span class="th">Consolidation</span><span class="th" style="text-align:right">Candles</span><span class="th" style="text-align:right">S&amp;R</span><span class="th" style="text-align:right">Bias</span><span class="th" style="text-align:right">Str%</span>
 </div>
 <div id="tb"><div class="msg">Click Scan to begin</div></div>
 </div>
@@ -73,36 +74,105 @@ select{background:#111;border:1px solid #252525;color:#e0e0e0;font-family:monosp
 <div style="margin-left:auto">Last: <strong id="st2">—</strong></div>
 </div>
 <script>
+const KEY='fdfd4abe290442689d4d9a6f85bba812';
+const BASE='https://api.twelvedata.com';
 const PAIRS=['EUR/USD','GBP/USD','GBP/JPY','EUR/JPY'];
-let data=[],cf='all';
+let scanData=[],cf='all';
+
+async function getCandles(symbol,interval){
+  const url=BASE+'/time_series?symbol='+encodeURIComponent(symbol)+'&interval='+interval+'&outputsize=20&apikey='+KEY;
+  const r=await fetch(url);
+  const d=await r.json();
+  if(d.status==='error')throw new Error(d.message);
+  return d.values;
+}
+
+function atr(candles){
+  const trs=candles.slice(0,14).map((c,i)=>{
+    const h=parseFloat(c.high),l=parseFloat(c.low);
+    const pc=i<candles.length-1?parseFloat(candles[i+1].close):parseFloat(c.close);
+    return Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc));
+  });
+  return trs.reduce((a,b)=>a+b,0)/trs.length;
+}
+
+function detectCons(candles){
+  const a=atr(candles);
+  for(let w=8;w>=2;w--){
+    const s=candles.slice(0,w);
+    const rh=Math.max(...s.map(c=>parseFloat(c.high)));
+    const rl=Math.min(...s.map(c=>parseFloat(c.low)));
+    const range=rh-rl;
+    if(range<a*0.4)return{ok:true,w,rh,rl,range,a,tight:1-(range/(a*0.4))};
+  }
+  return{ok:false,w:0,range:0,a,tight:0};
+}
+
+function bias(candles,cons){
+  if(!cons.ok)return'none';
+  const prior=candles.slice(cons.w,cons.w+6);
+  if(prior.length<2)return'coil';
+  const pc=parseFloat(prior[0].close),po=parseFloat(prior[prior.length-1].open);
+  const ph=Math.max(...prior.map(c=>parseFloat(c.high)));
+  const pl=Math.min(...prior.map(c=>parseFloat(c.low)));
+  const mid=(cons.rh+cons.rl)/2,pm=(ph+pl)/2,up=pc>po;
+  return up&&mid>pm?'long':!up&&mid<pm?'short':up?'long':'short';
+}
+
+function srCheck(candles,cons){
+  if(!cons.ok)return false;
+  const mid=(cons.rh+cons.rl)/2;
+  return candles.slice(cons.w+2).some(c=>
+    Math.abs(parseFloat(c.high)-mid)<cons.a*0.5||Math.abs(parseFloat(c.low)-mid)<cons.a*0.5
+  );
+}
+
+function pips(range,pair){return Math.round(range/(pair.includes('JPY')?0.01:0.0001));}
+function trend(c){const r=parseFloat(c[0].close),o=parseFloat(c[7].close);return r>o*1.001?'up':r<o*0.999?'down':'sideways';}
+
+async function analyzePair(pair){
+  const [h4,h1]=await Promise.all([getCandles(pair,'4h'),getCandles(pair,'1h')]);
+  const h4c=detectCons(h4),h1c=detectCons(h1);
+  const pc=h4c.ok?h4c:h1c,pd=h4c.ok?h4:h1;
+  const b=bias(pd,pc),sr=srCheck(h4,h4c);
+  const str=pc.ok?Math.min(Math.round(pc.tight*60+(sr?25:0)+(b!=='coil'?15:0)),99):0;
+  return{pair,h4c:h4c.w,h1c:h1c.w,cons:pc.ok,bias:pc.ok?b:'none',str,sr,pips:pips(pc.range||0,pair),trend:trend(h4)};
+}
+
 async function scan(){
   const btn=document.getElementById('sb');
   btn.disabled=true;btn.textContent='Scanning...';
-  data=[];
-  document.getElementById('tb').innerHTML='<div class="msg">Scanning 4 pairs...</div>';
+  scanData=[];
+  document.getElementById('tb').innerHTML='<div class="msg">Scanning...</div>';
   for(let i=0;i<PAIRS.length;i++){
     document.getElementById('prog').textContent='Scanning '+(i+1)+'/'+PAIRS.length+': '+PAIRS[i];
     try{
-      const r=await fetch('/api/scan?pair='+encodeURIComponent(PAIRS[i]));
-      const d=await r.json();
-      if(!d.error){data.push(d);}
-    }catch(e){console.error(e);}
+      const d=await analyzePair(PAIRS[i]);
+      scanData.push(d);
+    }catch(e){console.error(PAIRS[i],e);}
     render();
+    if(i<PAIRS.length-1)await new Promise(r=>setTimeout(r,8000));
   }
   document.getElementById('prog').textContent='';
   const n=new Date();
-  document.getElementById('st').textContent=n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  document.getElementById('st2').textContent=n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const t=n.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('st').textContent=t;
+  document.getElementById('st2').textContent=t;
   btn.disabled=false;btn.textContent='Scan';
 }
-function filt(el,f){document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');cf=f;render();}
+
+function filt(el,f){
+  document.querySelectorAll('.btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');cf=f;render();
+}
+
 function render(){
   const tf=document.getElementById('tf').value;
   const mc=parseInt(document.getElementById('mc').value);
-  let rows=data.filter(d=>{
-    const c=tf==='1h'?d.h1_candles:d.h4_candles;
+  let rows=scanData.filter(d=>{
+    const c=tf==='1h'?d.h1c:d.h4c;
     return c>=mc&&(cf==='all'||d.bias===cf);
-  }).sort((a,b)=>b.strength-a.strength);
+  }).sort((a,b)=>b.str-a.str);
   const L=rows.filter(d=>d.bias==='long');
   const S=rows.filter(d=>d.bias==='short');
   const C=rows.filter(d=>d.bias==='coil');
@@ -111,19 +181,20 @@ function render(){
   if(L.length)h+='<div class="sdiv">Long ('+L.length+')</div>'+L.map((d,i)=>mkrow(d,tf,'L'+i)).join('');
   if(S.length)h+='<div class="sdiv">Short ('+S.length+')</div>'+S.map((d,i)=>mkrow(d,tf,'S'+i)).join('');
   if(C.length)h+='<div class="sdiv">Coiling ('+C.length+')</div>'+C.map((d,i)=>mkrow(d,tf,'C'+i)).join('');
-  if(N.length)h+='<div class="sdiv">No consolidation ('+N.length+')</div>'+N.map((d,i)=>mkrow(d,tf,'N'+i)).join('');
+  if(N.length)h+='<div class="sdiv">No setup ('+N.length+')</div>'+N.map((d,i)=>mkrow(d,tf,'N'+i)).join('');
   if(!h)h='<div class="msg">No matches</div>';
   document.getElementById('tb').innerHTML=h;
   document.getElementById('sl').textContent=L.length;
   document.getElementById('ss').textContent=S.length;
   document.getElementById('sc').textContent=C.length;
 }
+
 function mkrow(d,tf,id){
-  const c=tf==='1h'?d.h1_candles:tf==='4h'?d.h4_candles:d.h4_candles+'/'+d.h1_candles;
+  const c=tf==='1h'?d.h1c:tf==='4h'?d.h4c:d.h4c+'/'+d.h1c;
   const col=d.bias==='long'?'#2ecc71':d.bias==='short'?'#e74c3c':'#444';
-  const bc=d.bias==='long'?'long':d.bias==='short'?'short':'coil';
+  const bc=d.bias==='long'?'long':d.bias==='short'?'short':d.bias==='coil'?'coil':'none';
   const bl=d.bias==='long'?'LONG':d.bias==='short'?'SHORT':d.bias==='coil'?'COIL':'—';
-  return '<div class="row" onclick="tog(''+id+'')"><span class="pname">'+d.pair+'</span><span class="tft">'+(tf==='both'?'H4/H1':tf.toUpperCase())+'</span><div class="bar"><div class="bfill" style="width:'+d.strength+'%;background:'+col+'"></div></div><span class="cn">'+c+'</span><span style="text-align:right"><span class="sr '+(d.near_sr?'srY':'srN')+'">'+(d.near_sr?'SR':'—')+'</span></span><span style="text-align:right"><span class="badge '+bc+'">'+bl+'</span></span><span style="text-align:right;font-size:11px;color:#888">'+d.strength+'%</span></div><div class="det" id="det-'+id+'"><span>H4:'+d.h4_candles+'</span><span>H1:'+d.h1_candles+'</span><span>'+d.range_pips+'pips</span><span>'+d.h4_trend+'</span></div>';
+  return '<div class="row" onclick="tog(''+id+'')"><span class="pname">'+d.pair+'</span><span class="tft">'+(tf==='both'?'H4/H1':tf.toUpperCase())+'</span><div class="bar"><div class="bfill" style="width:'+d.str+'%;background:'+col+'"></div></div><span class="cn">'+c+'</span><span style="text-align:right"><span class="sr '+(d.sr?'srY':'srN')+'">'+(d.sr?'SR':'—')+'</span></span><span style="text-align:right"><span class="badge '+bc+'">'+bl+'</span></span><span style="text-align:right;font-size:11px;color:#888">'+d.str+'%</span></div><div class="det" id="det-'+id+'"><span>H4: '+d.h4c+' candles</span><span>H1: '+d.h1c+' candles</span><span>'+d.pips+' pips</span><span>Trend: '+d.trend+'</span></div>';
 }
 function tog(id){const el=document.getElementById('det-'+id);if(el)el.classList.toggle('open');}
 </script>
