@@ -131,7 +131,7 @@ function pips(range,pair){return Math.round(range/(pair.includes('JPY')?0.01:0.0
 function trend(c){const r=parseFloat(c[0].close),o=parseFloat(c[7].close);return r>o*1.001?'up':r<o*0.999?'down':'sideways';}
 
 async function analyzePair(pair){
-  const [h4,h1]=await Promise.all([getCandles(pair,'4h'),getCandles(pair,'1h')]);
+  const h4=await getCandles(pair,'4h');await new Promise(r=>setTimeout(r,1000));const h1=await getCandles(pair,'1h');
   const h4c=detectCons(h4),h1c=detectCons(h1);
   const pc=h4c.ok?h4c:h1c,pd=h4c.ok?h4:h1;
   const b=bias(pd,pc),sr=srCheck(h4,h4c);
