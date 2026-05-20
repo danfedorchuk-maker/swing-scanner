@@ -149,7 +149,7 @@ async function scan(){
     try{
       const d=await analyzePair(PAIRS[i]);
       scanData.push(d);
-    }catch(e){console.error(PAIRS[i],e);}
+    }catch(e){console.error(PAIRS[i],e.message,e.stack);}
     render();
     if(i<PAIRS.length-1)await new Promise(r=>setTimeout(r,8000));
   }
