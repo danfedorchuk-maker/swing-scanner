@@ -103,7 +103,7 @@ function detectCons(candles){
     const rh=Math.max(...s.map(c=>parseFloat(c.high)));
     const rl=Math.min(...s.map(c=>parseFloat(c.low)));
     const range=rh-rl;
-    if(range<a*0.4)return{ok:true,w,rh,rl,range,a,tight:1-(range/(a*0.4))};
+    if(range<a*1.5)return{ok:true,w,rh,rl,range,a,tight:1-(range/(a*0.4))};
   }
   return{ok:false,w:0,range:0,a,tight:0};
 }
