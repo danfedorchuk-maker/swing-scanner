@@ -67,7 +67,7 @@ select{background:#111;border:1px solid #252525;color:#e0e0e0;font-family:monosp
 <div id="tb"><div class="msg">Click Scan to begin</div></div>
 </div>
 <div class="sbar">
-<div>Pairs: <strong id="sp">4</strong></div>
+<div>Pairs: <strong id="sp">28</strong></div>
 <div>Long: <strong id="sl">—</strong></div>
 <div>Short: <strong id="ss">—</strong></div>
 <div>Coil: <strong id="sc">—</strong></div>
@@ -76,7 +76,15 @@ select{background:#111;border:1px solid #252525;color:#e0e0e0;font-family:monosp
 <script>
 const KEY='fdfd4abe290442689d4d9a6f85bba812';
 const BASE='https://api.twelvedata.com';
-const PAIRS=['EUR/USD','GBP/USD','GBP/JPY','EUR/JPY'];
+const PAIRS=[
+  'EUR/USD','GBP/USD','USD/JPY','USD/CHF','USD/CAD','AUD/USD','NZD/USD',
+  'EUR/GBP','EUR/JPY','EUR/CHF','EUR/CAD','EUR/AUD','EUR/NZD',
+  'GBP/JPY','GBP/CHF','GBP/CAD','GBP/AUD','GBP/NZD',
+  'AUD/JPY','AUD/CHF','AUD/CAD','AUD/NZD',
+  'CAD/JPY','CAD/CHF',
+  'NZD/JPY','NZD/CHF','NZD/CAD',
+  'CHF/JPY'
+];
 let scanData=[],cf='all';
 
 async function getCandles(symbol,interval){
@@ -131,7 +139,9 @@ function pips(range,pair){return Math.round(range/(pair.includes('JPY')?0.01:0.0
 function trend(c){const r=parseFloat(c[0].close),o=parseFloat(c[7].close);return r>o*1.001?'up':r<o*0.999?'down':'sideways';}
 
 async function analyzePair(pair){
-  const h4=await getCandles(pair,'4h');await new Promise(r=>setTimeout(r,8000));const h1=await getCandles(pair,'1h');
+  const h4=await getCandles(pair,'4h');
+  await new Promise(r=>setTimeout(r,8000));
+  const h1=await getCandles(pair,'1h');
   const h4c=detectCons(h4),h1c=detectCons(h1);
   const pc=h4c.ok?h4c:h1c,pd=h4c.ok?h4:h1;
   const b=bias(pd,pc),sr=srCheck(h4,h4c);
@@ -149,7 +159,7 @@ async function scan(){
     try{
       const d=await analyzePair(PAIRS[i]);
       scanData.push(d);
-    }catch(e){console.error(PAIRS[i],e.message,e.stack);}
+    }catch(e){console.error(PAIRS[i],e.message);}
     render();
     if(i<PAIRS.length-1)await new Promise(r=>setTimeout(r,8000));
   }
@@ -194,8 +204,23 @@ function mkrow(d,tf,id){
   const col=d.bias==='long'?'#2ecc71':d.bias==='short'?'#e74c3c':'#444';
   const bc=d.bias==='long'?'long':d.bias==='short'?'short':d.bias==='coil'?'coil':'none';
   const bl=d.bias==='long'?'LONG':d.bias==='short'?'SHORT':d.bias==='coil'?'COIL':'—';
-  return '<div class="row" onclick="tog(\'+id+\')"><span class="pname">'+d.pair+'</span><span class="tft">'+(tf==='both'?'H4/H1':tf.toUpperCase())+'</span><div class="bar"><div class="bfill" style="width:'+d.str+'%;background:'+col+'"></div></div><span class="cn">'+c+'</span><span style="text-align:right"><span class="sr '+(d.sr?'srY':'srN')+'">'+(d.sr?'SR':'—')+'</span></span><span style="text-align:right"><span class="badge '+bc+'">'+bl+'</span></span><span style="text-align:right;font-size:11px;color:#888">'+d.str+'%</span></div><div class="det" id="det-'+id+'"><span>H4: '+d.h4c+' candles</span><span>H1: '+d.h1c+' candles</span><span>'+d.pips+' pips</span><span>Trend: '+d.trend+'</span></div>';
+  return '<div class="row" onclick="tog(\''+id+'\')">'
+    +'<span class="pname">'+d.pair+'</span>'
+    +'<span class="tft">'+(tf==='both'?'H4/H1':tf.toUpperCase())+'</span>'
+    +'<div class="bar"><div class="bfill" style="width:'+d.str+'%;background:'+col+'"></div></div>'
+    +'<span class="cn">'+c+'</span>'
+    +'<span style="text-align:right"><span class="sr '+(d.sr?'srY':'srN')+'">'+(d.sr?'SR':'—')+'</span></span>'
+    +'<span style="text-align:right"><span class="badge '+bc+'">'+bl+'</span></span>'
+    +'<span style="text-align:right;font-size:11px;color:#888">'+d.str+'%</span>'
+    +'</div>'
+    +'<div class="det" id="det-'+id+'">'
+    +'<span>H4: '+d.h4c+' candles</span>'
+    +'<span>H1: '+d.h1c+' candles</span>'
+    +'<span>'+d.pips+' pips</span>'
+    +'<span>Trend: '+d.trend+'</span>'
+    +'</div>';
 }
+
 function tog(id){const el=document.getElementById('det-'+id);if(el)el.classList.toggle('open');}
 </script>
 </body>
